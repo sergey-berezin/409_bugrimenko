@@ -40,8 +40,11 @@ namespace MyApp
             ConsoleUtility.WriteProgressBar(i, true);
         }
     }
+
     internal class Program
     {
+        private static CancellationTokenSource cts = new();
+        private static bool cancelFlag = false;
         static async Task Main(string[] args)
         {
             if (args.Length == 0)
@@ -68,8 +71,7 @@ namespace MyApp
                 Console.WriteLine(e.Message);
                 return;
             }
-
-            CancellationTokenSource cts = new();
+            Console.CancelKeyPress += new ConsoleCancelEventHandler(myHandler);
             TaskFactory factory = new();
 
             Console.WriteLine("Initializing model and checking for neccesary files. Please, wait.\n");
@@ -82,18 +84,40 @@ namespace MyApp
 
             List<Task> TaskList = new();
             string qst = Console.ReadLine();
+            if (cancelFlag)
+            {
+                return;
+            }
             while (!string.IsNullOrEmpty(qst))
             {
                 var getAnsTask = factory.StartNew(() => Console.WriteLine(TextAnalyzer.GetAnswerAsync(qst, text).Result),
-                                                cts.Token,
-                                                TaskCreationOptions.LongRunning,
-                                                TaskScheduler.Default);
+                                                cts.Token);
                 TaskList.Add(getAnsTask);
                 qst = Console.ReadLine();
+                if (cancelFlag)
+                {
+                    return;
+                }
             }
-
             Console.WriteLine("Questions input is finished. Waiting for answers.\n");
-            Task.WaitAll(TaskList.ToArray());
+            try
+            {
+                Task.WaitAll(TaskList.ToArray(), cts.Token);
+            }
+            catch (OperationCanceledException e)
+            {
+                Console.WriteLine("Program terminated.");
+                return;
+            }
+        }
+
+        protected static void myHandler(object sender, ConsoleCancelEventArgs args)
+        {
+            args.Cancel = true;
+            cancelFlag = true;
+            cts.Cancel();
+            Console.WriteLine("Cancel Key pressed. Terminating program.");
+            
         }
     }
 }
