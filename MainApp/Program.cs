@@ -90,8 +90,11 @@ namespace MyApp
             }
             while (!string.IsNullOrEmpty(qst))
             {
-                var getAnsTask = factory.StartNew(() => Console.WriteLine(TextAnalyzer.GetAnswerAsync(qst, text).Result),
-                                                cts.Token);
+                var getAnsTask = factory.StartNew(async () =>
+                {
+                    var a = await TextAnalyzer.GetAnswerAsync(qst, text);
+                    Console.WriteLine(a);
+                }, cts.Token);
                 TaskList.Add(getAnsTask);
                 qst = Console.ReadLine();
                 if (cancelFlag)
