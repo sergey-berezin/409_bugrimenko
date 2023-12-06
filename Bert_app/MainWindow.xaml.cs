@@ -1,9 +1,11 @@
-﻿using Microsoft.Win32;
+﻿using Bert;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,7 +31,14 @@ namespace BertApp
             InitializeComponent();
 
             bertVM = new BertVM();
+            var destinationPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\BertAppHistory\\work_history";
             tabs.ItemsSource = bertVM.Texts;
+            if (File.Exists(destinationPath))
+            {
+                BertVM.Load(destinationPath, ref bertVM);
+                tabs.ItemsSource = bertVM.Texts;
+            }
+            InitializeSaving();
         }
 
         private void ChooseFile_btn(object sender, RoutedEventArgs e)
@@ -54,6 +63,32 @@ namespace BertApp
             }
         }
 
+        private void DeleteHistory(object sender, RoutedEventArgs e)
+        {
+            var destinationPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\BertAppHistory\\work_history";
+            if (File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+            bertVM.Texts.Clear();
+        }
+
+        private void SaveHistory_btn(object sender, RoutedEventArgs e)
+        {
+            SaveHistory();
+        }
+        private void SaveHistory()
+        {
+            var destinationPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\BertAppHistory";
+            if (Directory.Exists(destinationPath))
+            {
+                bertVM.Save(destinationPath + "\\work_history");
+                return;
+            }
+            Directory.CreateDirectory(destinationPath);
+            bertVM.Save(destinationPath + "\\work_history");
+            return;
+        }
         private void btnDelete_Click(object sender, RoutedEventArgs e)
         {
             var toRemove = ((sender as Button).DataContext as OneText);
@@ -111,6 +146,37 @@ namespace BertApp
             var qst = FindChild<TextBox>(parentElement, "qst").Text;
             bertVM.Texts[i].Question = qst;
             //MessageBox.Show("Analyzing question: " + qst);
+        }
+
+        // The `onTick` method will be called periodically unless cancelled.
+        private static async Task RunPeriodicAsync(Action onTick,
+                                                   TimeSpan dueTime,
+                                                   TimeSpan interval,
+                                                   CancellationToken token)
+        {
+            // Initial wait time before we begin the periodic loop.
+            if (dueTime > TimeSpan.Zero)
+                await Task.Delay(dueTime, token);
+
+            // Repeat this loop until cancelled.
+            while (!token.IsCancellationRequested)
+            {
+                // Call our onTick function.
+                onTick?.Invoke();
+
+                // Wait to repeat again.
+                if (interval > TimeSpan.Zero)
+                    await Task.Delay(interval, token);
+            }
+        }
+
+        private void InitializeSaving()
+        {
+            var dueTime = TimeSpan.FromSeconds(5);
+            var interval = TimeSpan.FromSeconds(5);
+
+            // TODO: Add a CancellationTokenSource and supply the token here instead of None.
+            RunPeriodicAsync(SaveHistory, dueTime, interval, Analyzer.cts.Token);
         }
     }
 }
