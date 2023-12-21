@@ -1,0 +1,103 @@
+﻿<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Text Analyzer App</title>
+    <link rel="stylesheet" href="styles and js/style.css">
+</head>
+<body>
+    <div id="vanta-canvas"></div>
+    <div class="glwrapper">
+        <div class="wrapper">
+            <form method="post" id="myForm">
+                <textarea id="inpText"></textarea>
+                <input type="file" id="js-file" accept=".txt">
+            </form>
+            <button class="mybutton" onclick="postText(event)">Send text</button>
+            <input id="questionInput" placeholder="Enter your question">
+            <button class="mybutton" onclick="getAnswer(event)">Get Answer</button>
+            <div id="inProgress" class="toHide">
+                <div class="lds-dual-ring" id="progress"></div>
+                <p id="inProgressText">Question is being handled, please wait.</p>
+            </div>
+            <p id="answer"></p>
+        </div>
+    </div>
+
+    <script src="styles and js/jquery-3.7.1.min.js"></script>
+    <script type="text/javascript">
+        $("#js-file").change(function () {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $("#inpText").val(e.target.result);
+            };
+            reader.readAsText($("#js-file")[0].files[0], "UTF-8");
+        });
+    </script>
+
+    <script type="text/javascript">
+        let textId = '';
+
+        async function postText(event)
+        {
+            const text = document.getElementById('inpText').value;
+            await fetch('https://localhost:7064/BertAnalyzer', {
+                method: 'POST',
+                headers: {
+                    'accept': 'text/plain',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(text),
+            })
+                .then(response => { return response.json(); })
+                .then(result => { textId = result; })
+            return;
+        }
+
+        async function getAnswer(event)
+        {
+            if (textId.length == 0) {
+                alert('You have to send text first.')
+                return;
+            }
+
+            const question = document.getElementById('questionInput').value;
+            if (question.length == 0) {
+                alert('Please ask a question')
+                return;
+            }
+            let answer;
+            document.getElementById('inProgress').classList.toggle('toHide');
+            document.getElementById('answer').classList.toggle('toHide');
+            await fetch('https://localhost:7064/BertAnalyzer?' + new URLSearchParams({
+                textId: textId,
+                question: question,
+            }))
+                .then(response => { return response.text(); })
+                .then(result => { answer = result; })
+            document.getElementById('inProgress').classList.toggle('toHide');
+            document.getElementById('answer').classList.toggle('toHide');
+            document.getElementById('answer').innerText = answer;
+        }
+    </script>
+
+    <script src="styles and js/three.min.js"></script>
+    <script src="styles and js/vanta.globe.min.js"></script>
+    <script type="text/javascript">
+        VANTA.GLOBE({
+            el: "#vanta-canvas",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0x4aff3f
+        })
+    </script>
+
+
+</body>
+</html>
